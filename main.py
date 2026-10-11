@@ -30,6 +30,41 @@ class SUGFv3:
         # Retorno de dados simulados do Micro Nasdaq 100
         return {"symbol": "MNQ", "price": 18250.50, "volume": 3500}
 
+    def calculate_fvg(self, candles):
+        """
+        Calcula Fair Value Gaps (FVG) para NQ a partir de uma lista de velas.
+        Cada vela deve ser um dicionário com 'high' e 'low' (opcionalmente 'open' e 'close').
+        Retorna uma lista de dicionários com os FVGs encontrados.
+        """
+        fvgs = []
+        if len(candles) < 3:
+            return fvgs
+
+        for i in range(len(candles) - 2):
+            candle1 = candles[i]
+            candle2 = candles[i+1]
+            candle3 = candles[i+2]
+
+            # Bullish FVG: O low da vela 3 é maior que o high da vela 1
+            if candle3['low'] > candle1['high']:
+                fvgs.append({
+                    'type': 'bullish',
+                    'top': candle3['low'],
+                    'bottom': candle1['high'],
+                    'middle_candle_index': i + 1
+                })
+
+            # Bearish FVG: O high da vela 3 é menor que o low da vela 1
+            elif candle3['high'] < candle1['low']:
+                fvgs.append({
+                    'type': 'bearish',
+                    'top': candle1['low'],
+                    'bottom': candle3['high'],
+                    'middle_candle_index': i + 1
+                })
+
+        return fvgs
+
     def analyze_order_flow(self, data):
         """
         Módulo 2: Inteligência Tática (SMC / GEX / Order Blocks)
