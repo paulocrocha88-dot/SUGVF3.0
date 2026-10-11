@@ -63,6 +63,8 @@ class SMCAnalyzer:
         }
 
 
+import numpy as np
+
 class RiskManager:
     """
     Controls drawdowns, risk metrics, and position sizing dynamically.
@@ -70,13 +72,43 @@ class RiskManager:
     def __init__(self):
         self.logger = logging.getLogger("RiskManager")
         self.max_daily_loss = 500.0
+        self.max_drawdown_limit = 2500.0
         self.current_loss = 0.0
+        self.current_drawdown = 0.0
+
+    def run_monte_carlo_simulation(self, current_price: float, volatility: float = 0.01, drift: float = 0.0, steps: int = 100, simulations: int = 1000) -> float:
+        """Runs Monte Carlo simulations on future price paths to calculate expected maximum drawdown."""
+        # Simple geometric Brownian motion simulation
+        dt = 1.0 / steps
+        price_paths = np.zeros((simulations, steps + 1))
+        price_paths[:, 0] = current_price
+
+        for t in range(1, steps + 1):
+            random_shocks = np.random.normal(0, 1, simulations)
+            price_paths[:, t] = price_paths[:, t-1] * np.exp((drift - 0.5 * volatility**2) * dt + volatility * np.sqrt(dt) * random_shocks)
+
+        # Calculate maximum drawdown for each path
+        max_drawdowns = []
+        for path in price_paths:
+            peak = np.maximum.accumulate(path)
+            drawdown = (peak - path) / peak
+            max_drawdowns.append(np.max(drawdown) * current_price) # Estimate $ impact
+
+        # 95th percentile expected maximum drawdown
+        expected_max_drawdown = np.percentile(max_drawdowns, 95)
+        return float(expected_max_drawdown)
 
     def approve_trade(self, signal: str, price: float) -> bool:
         """Validates if the generated signal complies with risk parameters."""
         if self.current_loss >= self.max_daily_loss:
             self.logger.warning("Daily loss limit reached. Trade rejected.")
             return False
+
+        expected_drawdown = self.run_monte_carlo_simulation(price)
+        if self.current_drawdown + expected_drawdown > self.max_drawdown_limit:
+            self.logger.warning(f"Trade rejected: Expected max drawdown (${self.current_drawdown + expected_drawdown:.2f}) exceeds limit (${self.max_drawdown_limit:.2f})")
+            return False
+
         return True
 
 
