@@ -1,125 +1,212 @@
 import asyncio
 import logging
-from datetime import datetime
+from typing import Dict, Any, Optional
 
-# Configuração de Log para acompanhar o sistema no terminal
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Logging configuration
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - [%(name)s] - %(message)s')
 
-class SUGFv3:
+class DataFeedEngine:
+    """
+    Handles data ingestion from high-frequency feeds (e.g., Databento, Rithmic, Tradovate).
+    Responsible for normalizing order book updates, trades, and options chain data.
+    """
     def __init__(self):
-        self.project_name = "SUGF v3.0"
-        self.target_market = "Futuros Americanos (CME)"
-        self.execution_mode = "Manual (Transição futura para API Tradovate/Outras)"
-        self.active_symbols = ["MNQ", "NQ"] # Foco operacional atual
-        self.future_symbols = ["ES", "MES", "GC"] # Pipeline de expansão futura
+        self.logger = logging.getLogger("DataFeed")
+        self.connected = False
+
+    async def connect(self):
+        self.logger.info("Connecting to CME market data feed...")
+        await asyncio.sleep(1) # Simulated network delay
+        self.connected = True
+        self.logger.info("Connected to CME feed.")
+
+    async def fetch_market_data(self) -> Dict[str, Any]:
+        """Fetches the latest market state for underlying futures."""
+        if not self.connected:
+            raise ConnectionError("Not connected to data feed.")
         
-        logging.info(f"Inicializando {self.project_name}")
-        logging.info(f"Mercado Alvo: {self.target_market} (Mesas Proprietárias)")
-        logging.info(f"Ativos Atuais: {', '.join(self.active_symbols)}")
-        logging.info(f"Modo de Execução: {self.execution_mode}")
+        # Simulated data for NQ/MNQ
+        return {"symbol": "MNQ", "price": 18250.50, "volume": 3500, "bid": 18250.25, "ask": 18250.75}
 
-    async def fetch_market_data(self):
-        """
-        Módulo 1: Conexão com feed de dados
-        Aqui o Jules poderá futuramente integrar websockets da Rithmic, Tradovate ou Databento
-        para puxar dados de NQ/MNQ, calcular GEX, Vanna e Order Flow.
-        """
-        logging.info("A ligar ao feed de dados CME (Cálculo de fluxo / SMC)...")
-        await asyncio.sleep(2) # Simulação de latência
+    async def fetch_options_chain(self) -> Dict[str, Any]:
+        """Fetches options chain data for Microstructure calculations."""
+        # Simulated options chain stub
+        return {"underlying": "MNQ", "strikes": [18000, 18100, 18200, 18300, 18400], "expiry": "2024-06-21"}
+
+
+class SMCAnalyzer:
+    """
+    Evaluates Smart Money Concepts: Fair Value Gaps (FVG), Order Blocks (OB),
+    Market Structure Shifts (MSS), and Mean Thresholds.
+    """
+    def __init__(self):
+        self.logger = logging.getLogger("SMCAnalyzer")
+
+    def detect_fvg(self, data: Dict[str, Any]) -> bool:
+        """Detects Fair Value Gaps in recent price action."""
+        # Placeholder math using high/low of three candles
+        return False
+
+    def detect_order_blocks(self, data: Dict[str, Any]) -> Dict[str, float]:
+        """Identifies institutional order blocks and mean thresholds."""
+        return {"bullish_ob": 18200.0, "bearish_ob": 18300.0, "mean_threshold": 18250.0}
+
+    def analyze(self, market_data: Dict[str, Any]) -> Dict[str, Any]:
+        self.logger.debug(f"Analyzing SMC for {market_data['symbol']}")
+        return {
+            "fvg_present": self.detect_fvg(market_data),
+            "order_blocks": self.detect_order_blocks(market_data),
+            "trend_bias": "BULLISH" # Placeholder
+        }
+
+
+class OptionsMicrostructure:
+    """
+    Processes Options Data: Gamma Exposure (GEX), Spot Gamma, Vanna Nodes,
+    Zero Gamma Level, Call Walls, and Put Walls.
+    Requires heavy math libraries (NumPy, SciPy).
+    """
+    def __init__(self):
+        self.logger = logging.getLogger("Microstructure")
+
+    def calculate_gex(self, options_data: Dict[str, Any]) -> float:
+        """Calculates net Gamma Exposure across the options chain."""
+        # Stub
+        return 1.5e6
+
+    def calculate_vanna(self, options_data: Dict[str, Any]) -> float:
+        """Calculates Vanna (sensitivity of Delta to Volatility)."""
+        return 0.25
+
+    def get_key_levels(self, options_data: Dict[str, Any]) -> Dict[str, float]:
+        """Identifies Call Wall, Put Wall, and Zero Gamma Level (ZGL)."""
+        return {
+            "call_wall": 18500.0,
+            "put_wall": 18000.0,
+            "zero_gamma": 18200.0
+        }
+
+    def analyze(self, options_data: Dict[str, Any]) -> Dict[str, Any]:
+        self.logger.debug("Calculating Options Microstructure metrics...")
+        return {
+            "net_gex": self.calculate_gex(options_data),
+            "vanna": self.calculate_vanna(options_data),
+            "key_levels": self.get_key_levels(options_data)
+        }
+
+
+class GameTheoryAI:
+    """
+    Execution Intelligence: Uses Game Theory probability models and AI agents
+    to determine optimal entry/exit strategies based on multi-agent market simulations.
+    """
+    def __init__(self):
+        self.logger = logging.getLogger("GameTheoryAI")
+
+    def compute_payoff_matrix(self, smc_data: Dict, micro_data: Dict) -> Dict[str, float]:
+        """Constructs a payoff matrix for different market participant behaviors."""
+        # Placeholder
+        return {"long_ev": 2.5, "short_ev": -1.2, "neutral_ev": 0.0}
+
+    def decide_action(self, smc_data: Dict, micro_data: Dict, market_data: Dict) -> Optional[str]:
+        """Returns the optimal action based on Nash Equilibrium probabilities or RL Agent."""
+        self.logger.debug("Evaluating Game Theory optimal strategy...")
+        payoffs = self.compute_payoff_matrix(smc_data, micro_data)
         
-        # Retorno de dados simulados do Micro Nasdaq 100
-        return {"symbol": "MNQ", "price": 18250.50, "volume": 3500}
+        # Simple stub logic combining signals
+        if smc_data["trend_bias"] == "BULLISH" and market_data["price"] > micro_data["key_levels"]["zero_gamma"]:
+            if payoffs["long_ev"] > 1.0:
+                return "BUY"
+        return None
 
-    def calculate_fvg(self, candles):
-        """
-        Calcula Fair Value Gaps (FVG) para NQ a partir de uma lista de velas.
-        Cada vela deve ser um dicionário com 'high' e 'low' (opcionalmente 'open' e 'close').
-        Retorna uma lista de dicionários com os FVGs encontrados.
-        """
-        fvgs = []
-        if len(candles) < 3:
-            return fvgs
 
-        for i in range(len(candles) - 2):
-            candle1 = candles[i]
-            candle2 = candles[i+1]
-            candle3 = candles[i+2]
+class RiskManager:
+    """
+    Controls drawdowns, risk metrics, and position sizing dynamically.
+    """
+    def __init__(self):
+        self.logger = logging.getLogger("RiskManager")
+        self.max_daily_loss = 500.0
+        self.current_loss = 0.0
 
-            # Bullish FVG: O low da vela 3 é maior que o high da vela 1
-            if candle3['low'] > candle1['high']:
-                fvgs.append({
-                    'type': 'bullish',
-                    'top': candle3['low'],
-                    'bottom': candle1['high'],
-                    'middle_candle_index': i + 1
-                })
+    def approve_trade(self, signal: str, price: float) -> bool:
+        """Validates if the generated signal complies with risk parameters."""
+        if self.current_loss >= self.max_daily_loss:
+            self.logger.warning("Daily loss limit reached. Trade rejected.")
+            return False
+        return True
 
-            # Bearish FVG: O high da vela 3 é menor que o low da vela 1
-            elif candle3['high'] < candle1['low']:
-                fvgs.append({
-                    'type': 'bearish',
-                    'top': candle1['low'],
-                    'bottom': candle3['high'],
-                    'middle_candle_index': i + 1
-                })
 
-        return fvgs
+class ExecutionEngine:
+    """
+    Handles trade execution. Currently manual (alerts), but architected
+    for future API integration (Tradovate, Interactive Brokers, etc.).
+    """
+    def __init__(self):
+        self.logger = logging.getLogger("ExecutionEngine")
 
-    def analyze_order_flow(self, data):
-        """
-        Módulo 2: Inteligência Tática (SMC / GEX / Order Blocks)
-        """
-        logging.info(f"A analisar Order Blocks, Fair Value Gaps (FVG) e Liquidez no {data['symbol']}...")
-        
-        # Simulação de um gatilho de entrada numa zona institucional do Nasdaq
-        signal = None
-        if data['price'] > 18200.00: 
-            signal = "BUY"
-            
-        return signal
+    def execute(self, signal: str, market_data: Dict[str, Any]):
+        """Dispatches the order to the broker or generates a manual alert."""
+        print("\n" + "="*60)
+        self.logger.warning(f"🚨 ALERTA DE EXECUÇÃO / TRADE SIGNAL 🚨")
+        self.logger.warning(f"Ativo: {market_data['symbol']} | Ação: {signal} | Preço ref: {market_data['price']}")
+        self.logger.warning(f"-> Por favor, execute a ordem na plataforma da mesa proprietária.")
+        print("="*60 + "\n")
+        # Future: self.api.place_order(symbol, side, quantity, order_type)
 
-    def execute_trade_manual(self, signal, data):
-        """
-        Módulo 3: Motor de Execução
-        A execução por API será implementada futuramente. 
-        O sistema emite um alerta claro para o trader operar manualmente na plataforma da prop firm.
-        """
-        if signal:
-            print("\n" + "="*55)
-            logging.warning(f"🚨 ALERTA DE EXECUÇÃO MANUAL - {self.target_market} 🚨")
-            logging.warning(f"Ativo: {data['symbol']} | Sinal gerado: {signal} | Preço ref: {data['price']}")
-            logging.warning(f"-> Vá à plataforma da mesa proprietária e execute a ordem {signal}.")
-            print("="*55 + "\n")
-            
-            # TODO: O Jules implementará a conexão de API automatizada aqui no futuro.
-            # ex: self.api.place_order(symbol=data['symbol'], side=signal, qty=1)
-        else:
-            logging.info("Nenhum sinal no momento. A aguardar confluências no gráfico...")
+
+class SUGFv3Orchestrator:
+    """
+    The main architectural orchestrator.
+    Manages the event loop, synchronizes data, and coordinates the subsystems.
+    """
+    def __init__(self):
+        self.logger = logging.getLogger("SUGFv3")
+        self.logger.info("Initializing SUGF v3.0 Advanced Architecture")
+
+        # Initialize modules
+        self.data_feed = DataFeedEngine()
+        self.smc = SMCAnalyzer()
+        self.microstructure = OptionsMicrostructure()
+        self.ai_engine = GameTheoryAI()
+        self.risk_manager = RiskManager()
+        self.execution = ExecutionEngine()
 
     async def run(self):
-        logging.info("Motor SUGF v3.0 online. A aguardar dados do mercado americano...")
+        """Main async event loop."""
+        self.logger.info("Booting SUGF v3.0 core loop...")
+        await self.data_feed.connect()
+
         while True:
             try:
-                # 1. Puxar os dados do mercado
-                market_data = await self.fetch_market_data()
-                
-                # 2. Analisar o cenário e procurar o gatilho
-                trade_signal = self.analyze_order_flow(market_data)
-                
-                # 3. Disparar o alerta para execução manual do trader
-                self.execute_trade_manual(trade_signal, market_data)
-                
-                # Pausa antes do próximo ciclo de análise
+                # 1. Ingest Data
+                market_data = await self.data_feed.fetch_market_data()
+                options_data = await self.data_feed.fetch_options_chain()
+
+                # 2. Analyze
+                smc_context = self.smc.analyze(market_data)
+                micro_context = self.microstructure.analyze(options_data)
+
+                # 3. Decision Making
+                action = self.ai_engine.decide_action(smc_context, micro_context, market_data)
+
+                # 4. Risk Check & Execution
+                if action:
+                    if self.risk_manager.approve_trade(action, market_data["price"]):
+                        self.execution.execute(action, market_data)
+                else:
+                    self.logger.info("No actionable signal at the moment. Awaiting confluences...")
+
+                # Yield control to the event loop
                 await asyncio.sleep(5)
-                
+
             except Exception as e:
-                logging.error(f"Erro no loop de operação: {e}")
+                self.logger.error(f"Critical error in execution loop: {e}")
                 await asyncio.sleep(5)
 
 if __name__ == "__main__":
-    bot = SUGFv3()
+    orchestrator = SUGFv3Orchestrator()
     try:
-        # Inicia o loop assíncrono do projeto
-        asyncio.run(bot.run())
+        asyncio.run(orchestrator.run())
     except KeyboardInterrupt:
-        logging.info("Sistema SUGF v3.0 encerrado pelo utilizador.")
+        logging.getLogger("SUGFv3").info("System shut down by user.")
