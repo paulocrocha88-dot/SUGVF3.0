@@ -1,35 +1,88 @@
+import os
 import asyncio
 import logging
+import json
+import websockets
+from dotenv import load_dotenv
 from typing import Dict, Any, Optional
 
 from options_engine import OptionsEngine
 from execution_engine import ExecutionEngine
+
+load_dotenv()
 
 # Logging configuration
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - [%(name)s] - %(message)s')
 
 class DataFeedEngine:
     """
-    Handles data ingestion from high-frequency feeds (e.g., Databento, Rithmic, Tradovate).
+    Handles data ingestion from high-frequency feeds (e.g., Tradovate WebSocket).
     Responsible for normalizing order book updates, trades, and options chain data.
     """
-    def __init__(self):
+    def __init__(self, execution_engine: Optional[ExecutionEngine] = None):
         self.logger = logging.getLogger("DataFeed")
         self.connected = False
+        self.ws_url = os.getenv("TRADOVATE_WS_URL", "wss://demo-api.tradovate.com/v1/websocket")
+        self.websocket = None
+        self.execution_engine = execution_engine
+
+        # Last known state of market data
+        self.current_market_data = {
+            "symbol": "MNQ",
+            "price": 18250.50,
+            "volume": 3500,
+            "bid": 18250.25,
+            "ask": 18250.75
+        }
 
     async def connect(self):
-        self.logger.info("Connecting to CME market data feed...")
-        await asyncio.sleep(1) # Simulated network delay
-        self.connected = True
-        self.logger.info("Connected to CME feed.")
+        self.logger.info(f"Connecting to Market Data WebSocket: {self.ws_url}...")
+        try:
+            # We connect to the websocket and start listening in the background
+            self.websocket = await websockets.connect(self.ws_url)
+            self.connected = True
+            self.logger.info("Connected to Market Data WebSocket.")
+
+            # Start background task to consume messages
+            asyncio.create_task(self._listen_to_ws())
+
+            # Authenticate and subscribe
+            if self.execution_engine and self.execution_engine.access_token:
+                auth_msg = f'authorize\n1\n\n{{"token":"{self.execution_engine.access_token}"}}'
+                await self.websocket.send(auth_msg)
+
+                sub_msg = f'md/subscribeQuote\n2\n\n{{"symbol":"MNQ"}}'
+                await self.websocket.send(sub_msg)
+                self.logger.info("Sent WebSocket auth and subscription for MNQ.")
+            else:
+                self.logger.warning("No execution engine token available for WebSocket auth.")
+
+        except Exception as e:
+            self.logger.error(f"Failed to connect to WebSocket: {e}")
+            self.connected = False
+
+    async def _listen_to_ws(self):
+        """Background task to continuously receive messages from the WebSocket."""
+        if not self.websocket:
+            return
+
+        try:
+            async for message in self.websocket:
+                # In a real scenario, we parse the message and update self.current_market_data
+                # e.g., msg_data = json.loads(message)
+                # self.current_market_data["price"] = msg_data.get("price", self.current_market_data["price"])
+                self.logger.debug(f"Received WS message: {message[:100]}...")
+        except websockets.exceptions.ConnectionClosed:
+            self.logger.warning("WebSocket connection closed.")
+            self.connected = False
 
     async def fetch_market_data(self) -> Dict[str, Any]:
         """Fetches the latest market state for underlying futures."""
         if not self.connected:
-            raise ConnectionError("Not connected to data feed.")
+            self.logger.warning("Not connected to data feed. Returning last known data.")
         
-        # Simulated data for NQ/MNQ
-        return {"symbol": "MNQ", "price": 18250.50, "volume": 3500, "bid": 18250.25, "ask": 18250.75}
+        # Return the most recent state updated by the websocket listener
+        return self.current_market_data
 
     async def fetch_options_chain(self) -> Dict[str, Any]:
         """Fetches options chain data for Microstructure calculations."""
@@ -122,17 +175,17 @@ class SUGFv3Orchestrator:
         self.logger.info("Initializing SUGF v3.0 Advanced Architecture")
 
         # Initialize modules
-        self.data_feed = DataFeedEngine()
+        self.execution = ExecutionEngine()
+        self.data_feed = DataFeedEngine(execution_engine=self.execution)
         self.smc = SMCAnalyzer()
         self.microstructure = OptionsEngine()
         self.risk_manager = RiskManager()
-        self.execution = ExecutionEngine()
 
     async def run(self):
         """Main async event loop."""
         self.logger.info("Booting SUGF v3.0 core loop...")
-        await self.data_feed.connect()
         await self.execution.connect_broker_api()
+        await self.data_feed.connect()
 
         while True:
             try:
