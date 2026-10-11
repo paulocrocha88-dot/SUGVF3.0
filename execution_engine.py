@@ -1,6 +1,11 @@
+import os
 import asyncio
 import logging
+import requests
+from dotenv import load_dotenv
 from typing import Dict, Any, Optional
+
+load_dotenv()
 
 class ExecutionEngine:
     """
@@ -10,6 +15,14 @@ class ExecutionEngine:
     def __init__(self):
         self.logger = logging.getLogger("ExecutionEngine")
         self.broker_connected = False
+
+        self.api_url = os.getenv("TRADOVATE_API_URL", "https://demo-api.tradovate.com/v1")
+        self.username = os.getenv("TRADOVATE_USERNAME")
+        self.password = os.getenv("TRADOVATE_PASSWORD")
+        self.client_id = os.getenv("TRADOVATE_CLIENT_ID")
+        self.client_secret = os.getenv("TRADOVATE_CLIENT_SECRET")
+        self.account_id = os.getenv("TRADOVATE_ACCOUNT_ID")
+        self.access_token = None
 
     def evaluate_game_theory_matrix(self, smc_data: Dict[str, Any], micro_data: Dict[str, Any]) -> Dict[str, float]:
         """Calculates institutional vs. retail probabilistic behavior at key SMC/GEX levels."""
@@ -51,23 +64,84 @@ class ExecutionEngine:
         return None
 
     async def connect_broker_api(self):
-        """API routing architecture stub (e.g., Tradovate/Rithmic REST/WebSocket structure)."""
-        self.logger.info("Connecting to Broker API (Tradovate/Rithmic) via REST/WebSockets...")
-        await asyncio.sleep(1) # Simulated network delay
-        self.broker_connected = True
-        self.logger.info("Successfully connected to Broker API for fully automated order placement.")
+        """API routing architecture utilizing Tradovate REST API."""
+        self.logger.info("Connecting to Broker API (Tradovate Sandbox) via REST...")
+
+        auth_url = f"{self.api_url}/auth/accesstokenrequest"
+        payload = {
+            "name": self.username,
+            "password": self.password,
+            "appId": "SampleApp",
+            "appVersion": "1.0",
+            "cid": int(self.client_id) if self.client_id and self.client_id.isdigit() else self.client_id,
+            "sec": self.client_secret
+        }
+
+        try:
+            # We run this in thread to not block event loop, though a small request is fast
+            loop = asyncio.get_event_loop()
+            response = await loop.run_in_executor(None, lambda: requests.post(auth_url, json=payload))
+
+            if response.status_code == 200:
+                data = response.json()
+                self.access_token = data.get("accessToken")
+                self.broker_connected = True
+                self.logger.info("Successfully authenticated with Tradovate Broker API.")
+            else:
+                self.logger.error(f"Failed to authenticate with Tradovate: {response.text}")
+                self.broker_connected = False
+        except Exception as e:
+            self.logger.error(f"Error connecting to Tradovate: {e}")
+            self.broker_connected = False
 
     async def execute_order(self, signal: str, market_data: Dict[str, Any]):
-        """Places the order autonomously with zero manual intervention."""
-        if not self.broker_connected:
+        """Places the order autonomously with zero manual intervention via Tradovate REST."""
+        if not self.broker_connected or not self.access_token:
             self.logger.error("Broker API not connected. Cannot execute order.")
             return
 
         print("\n" + "="*70)
         self.logger.warning(f"🤖 [AUTONOMOUS EXECUTION] ORDER SENT TO BROKER 🤖")
         self.logger.warning(f"Symbol: {market_data['symbol']} | Action: {signal} | Reference Price: {market_data['price']}")
-        self.logger.warning(f"-> Fully automated order placement successful. Zero manual intervention.")
-        print("="*70 + "\n")
 
-        # Future: await self.api.place_order(symbol, side, quantity, order_type)
-        await asyncio.sleep(0.5) # Simulate API call latency
+        # Prepare order
+        action_map = {"BUY": "Buy", "SELL": "Sell"}
+        side = action_map.get(signal)
+
+        if not side:
+            self.logger.error(f"Invalid signal {signal} for order execution.")
+            return
+
+        order_url = f"{self.api_url}/order/placeorder"
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+        }
+
+        payload = {
+            "accountSpec": self.username,
+            "accountId": int(self.account_id) if self.account_id and self.account_id.isdigit() else 1,
+            "action": side,
+            "symbol": market_data["symbol"],
+            "orderQty": 1,
+            "orderType": "Market",
+            "isAutomated": True
+        }
+
+        try:
+            loop = asyncio.get_event_loop()
+            response = await loop.run_in_executor(
+                None,
+                lambda: requests.post(order_url, json=payload, headers=headers)
+            )
+
+            if response.status_code == 200:
+                self.logger.warning(f"-> Fully automated order placement successful. Zero manual intervention.")
+                self.logger.debug(f"Order response: {response.json()}")
+            else:
+                self.logger.error(f"Failed to place order: {response.text}")
+        except Exception as e:
+            self.logger.error(f"Exception during order placement: {e}")
+
+        print("="*70 + "\n")
