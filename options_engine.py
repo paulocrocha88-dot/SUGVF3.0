@@ -36,6 +36,17 @@ class OptionsEngine:
         """Identifies Put Walls."""
         return 18000.0
 
+    def calculate_gex_box(self, options_data: Dict[str, Any]) -> Dict[str, float]:
+        """
+        Calculates 'GEX Box' zones (support/resistance price bands based on concentrated Gamma Exposure).
+        """
+        # Using placeholder logic for demonstration
+        zero_gamma = self.get_zero_gamma_level(options_data)
+        return {
+            "support": zero_gamma - 50.0,
+            "resistance": zero_gamma + 50.0
+        }
+
     def analyze(self, options_data: Dict[str, Any]) -> Dict[str, Any]:
         self.logger.debug("Calculating Options Engine metrics...")
 
@@ -45,11 +56,13 @@ class OptionsEngine:
         call_wall = self.get_call_walls(options_data)
         put_wall = self.get_put_walls(options_data)
         zero_gamma = self.get_zero_gamma_level(options_data)
+        gex_box = self.calculate_gex_box(options_data)
 
         return {
             "net_gex": net_gex,
             "vanna": vanna,
             "spot_gamma": spot_gamma,
+            "gex_box": gex_box,
             "key_levels": {
                 "call_wall": call_wall,
                 "put_wall": put_wall,
