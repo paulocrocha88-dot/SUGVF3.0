@@ -2,6 +2,8 @@ import asyncio
 import logging
 from typing import Dict, Any, Optional
 
+from options_engine import OptionsEngine
+
 # Logging configuration
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - [%(name)s] - %(message)s')
 
@@ -57,41 +59,6 @@ class SMCAnalyzer:
             "fvg_present": self.detect_fvg(market_data),
             "order_blocks": self.detect_order_blocks(market_data),
             "trend_bias": "BULLISH" # Placeholder
-        }
-
-
-class OptionsMicrostructure:
-    """
-    Processes Options Data: Gamma Exposure (GEX), Spot Gamma, Vanna Nodes,
-    Zero Gamma Level, Call Walls, and Put Walls.
-    Requires heavy math libraries (NumPy, SciPy).
-    """
-    def __init__(self):
-        self.logger = logging.getLogger("Microstructure")
-
-    def calculate_gex(self, options_data: Dict[str, Any]) -> float:
-        """Calculates net Gamma Exposure across the options chain."""
-        # Stub
-        return 1.5e6
-
-    def calculate_vanna(self, options_data: Dict[str, Any]) -> float:
-        """Calculates Vanna (sensitivity of Delta to Volatility)."""
-        return 0.25
-
-    def get_key_levels(self, options_data: Dict[str, Any]) -> Dict[str, float]:
-        """Identifies Call Wall, Put Wall, and Zero Gamma Level (ZGL)."""
-        return {
-            "call_wall": 18500.0,
-            "put_wall": 18000.0,
-            "zero_gamma": 18200.0
-        }
-
-    def analyze(self, options_data: Dict[str, Any]) -> Dict[str, Any]:
-        self.logger.debug("Calculating Options Microstructure metrics...")
-        return {
-            "net_gex": self.calculate_gex(options_data),
-            "vanna": self.calculate_vanna(options_data),
-            "key_levels": self.get_key_levels(options_data)
         }
 
 
@@ -167,7 +134,7 @@ class SUGFv3Orchestrator:
         # Initialize modules
         self.data_feed = DataFeedEngine()
         self.smc = SMCAnalyzer()
-        self.microstructure = OptionsMicrostructure()
+        self.microstructure = OptionsEngine()
         self.ai_engine = GameTheoryAI()
         self.risk_manager = RiskManager()
         self.execution = ExecutionEngine()
