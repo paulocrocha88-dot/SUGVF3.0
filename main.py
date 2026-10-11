@@ -112,10 +112,10 @@ class SUGFv3Orchestrator:
                 smc_context = self.smc.analyze(market_data)
                 micro_context = self.microstructure.analyze(options_data)
 
-                # 3. Decision Making
+                # 3. Decision Making (Game Theory AI + Options + SMC)
                 action = self.execution.decide_action(smc_context, micro_context, market_data)
 
-                # 4. Risk Check & Execution
+                # 4. Risk Check & Autonomous Execution
                 if action:
                     if self.risk_manager.approve_trade(action, market_data["price"]):
                         await self.execution.execute_order(action, market_data)
