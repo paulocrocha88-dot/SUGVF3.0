@@ -3,6 +3,7 @@ import logging
 from typing import Dict, Any, Optional
 
 from options_engine import OptionsEngine
+from execution_engine import ExecutionEngine
 
 # Logging configuration
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - [%(name)s] - %(message)s')
@@ -62,31 +63,6 @@ class SMCAnalyzer:
         }
 
 
-class GameTheoryAI:
-    """
-    Execution Intelligence: Uses Game Theory probability models and AI agents
-    to determine optimal entry/exit strategies based on multi-agent market simulations.
-    """
-    def __init__(self):
-        self.logger = logging.getLogger("GameTheoryAI")
-
-    def compute_payoff_matrix(self, smc_data: Dict, micro_data: Dict) -> Dict[str, float]:
-        """Constructs a payoff matrix for different market participant behaviors."""
-        # Placeholder
-        return {"long_ev": 2.5, "short_ev": -1.2, "neutral_ev": 0.0}
-
-    def decide_action(self, smc_data: Dict, micro_data: Dict, market_data: Dict) -> Optional[str]:
-        """Returns the optimal action based on Nash Equilibrium probabilities or RL Agent."""
-        self.logger.debug("Evaluating Game Theory optimal strategy...")
-        payoffs = self.compute_payoff_matrix(smc_data, micro_data)
-        
-        # Simple stub logic combining signals
-        if smc_data["trend_bias"] == "BULLISH" and market_data["price"] > micro_data["key_levels"]["zero_gamma"]:
-            if payoffs["long_ev"] > 1.0:
-                return "BUY"
-        return None
-
-
 class RiskManager:
     """
     Controls drawdowns, risk metrics, and position sizing dynamically.
@@ -104,24 +80,6 @@ class RiskManager:
         return True
 
 
-class ExecutionEngine:
-    """
-    Handles trade execution. Currently manual (alerts), but architected
-    for future API integration (Tradovate, Interactive Brokers, etc.).
-    """
-    def __init__(self):
-        self.logger = logging.getLogger("ExecutionEngine")
-
-    def execute(self, signal: str, market_data: Dict[str, Any]):
-        """Dispatches the order to the broker or generates a manual alert."""
-        print("\n" + "="*60)
-        self.logger.warning(f"🚨 ALERTA DE EXECUÇÃO / TRADE SIGNAL 🚨")
-        self.logger.warning(f"Ativo: {market_data['symbol']} | Ação: {signal} | Preço ref: {market_data['price']}")
-        self.logger.warning(f"-> Por favor, execute a ordem na plataforma da mesa proprietária.")
-        print("="*60 + "\n")
-        # Future: self.api.place_order(symbol, side, quantity, order_type)
-
-
 class SUGFv3Orchestrator:
     """
     The main architectural orchestrator.
@@ -135,7 +93,6 @@ class SUGFv3Orchestrator:
         self.data_feed = DataFeedEngine()
         self.smc = SMCAnalyzer()
         self.microstructure = OptionsEngine()
-        self.ai_engine = GameTheoryAI()
         self.risk_manager = RiskManager()
         self.execution = ExecutionEngine()
 
@@ -143,6 +100,7 @@ class SUGFv3Orchestrator:
         """Main async event loop."""
         self.logger.info("Booting SUGF v3.0 core loop...")
         await self.data_feed.connect()
+        await self.execution.connect_broker_api()
 
         while True:
             try:
@@ -155,12 +113,12 @@ class SUGFv3Orchestrator:
                 micro_context = self.microstructure.analyze(options_data)
 
                 # 3. Decision Making
-                action = self.ai_engine.decide_action(smc_context, micro_context, market_data)
+                action = self.execution.decide_action(smc_context, micro_context, market_data)
 
                 # 4. Risk Check & Execution
                 if action:
                     if self.risk_manager.approve_trade(action, market_data["price"]):
-                        self.execution.execute(action, market_data)
+                        await self.execution.execute_order(action, market_data)
                 else:
                     self.logger.info("No actionable signal at the moment. Awaiting confluences...")
 
