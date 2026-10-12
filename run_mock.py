@@ -31,12 +31,9 @@ def main():
     options_engine = OptionsEngine()
     risk_manager = RiskManager()
 
-    # Preços sequenciais para o NQZ6
+    # Preços sequenciais para o NQZ6 - exatamente 5
     prices = [
-        31250.25, 31255.50, 31248.00, 31260.25, 31265.00,
-        31258.75, 31270.50, 31275.25, 31268.00, 31280.50,
-        31272.25, 31285.00, 31290.75, 31282.50, 31295.25,
-        31300.00, 31292.75, 31305.50, 31310.25, 31302.00
+        31250.25, 31255.50, 31260.00, 31265.25, 31270.50
     ]
 
     for price in prices:
@@ -55,7 +52,8 @@ def main():
         vanna = options_engine.calculate_vanna_nodes(options_data)
         micro_data = options_engine.analyze(options_data) # Pegamos tudo pra teoria dos jogos
 
-        print(f"Cálculos - GEX: {gex}, Vanna: {vanna}")
+        gex_box = micro_data.get("gex_box", {})
+        print(f"Zonas - GEX: {gex}, GEX Box: {gex_box}, Vanna: {vanna}")
 
         # Teoria dos Jogos
         payoffs = compute_payoff_matrix(smc_data, micro_data)
