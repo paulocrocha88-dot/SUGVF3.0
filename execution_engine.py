@@ -2,6 +2,7 @@ import asyncio
 import logging
 from typing import Dict, Any, Optional
 import json
+from ninja_zmq_engine import NinjaBridge
 
 class BrokerAPI:
     """
@@ -119,6 +120,7 @@ class ExecutionEngine:
         self.logger = logging.getLogger("ExecutionEngine")
         self.api = BrokerAPI()
         self.ai = GameTheoryAI()
+        self.ninja_bridge = NinjaBridge()
 
     async def connect_broker_api(self):
         """Initializes the fully automated API routing architecture."""
@@ -152,6 +154,14 @@ class ExecutionEngine:
 
         if success:
             self.logger.warning(f"-> Fully automated order placement successful. Zero manual intervention.")
+            # Dispatch to NT8 over ZMQ
+            nt8_response = await self.ninja_bridge.send_order(
+                action=signal,
+                quantity=1,
+                ticker=market_data.get("symbol"),
+                price=market_data.get("price")
+            )
+            self.logger.info(f"NT8 ZMQ Response: {nt8_response}")
         else:
             self.logger.error(f"-> Autonomous order routing failed!")
 
